@@ -1,14 +1,17 @@
-import { useState } from 'react'
-import './App.css'
-import HomePageWithAuth from './components/Home'
+import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
+import HomePageWithAuth from "./components/Home";
+import CommPulseDashboard from "./components/AnalysisResults";
 
 function App() {
-
   return (
-    <>
-    <HomePageWithAuth />
-    </>
-  )
+    <Router>
+      <Routes>
+        <Route path="/" element={<HomePageWithAuth />} />
+
+        <Route path="/dashboard" element={<CommPulseDashboard />} />
+      </Routes>
+    </Router>
+  );
 }
 
-export default App
+export default App;

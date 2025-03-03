@@ -1,6 +1,8 @@
 import React, { useState,useContext } from 'react';
-import { Search, BarChart2, Shield, Cloud, Download, Bell, ArrowRight, Moon, Sun } from 'lucide-react';
+import { Search, BarChart2, Shield, Cloud, Download, Bell, ArrowRight, Moon, Sun, Loader2 } from 'lucide-react';
 import { AuthProvider, AuthContext, LoginModal, UserAvatar} from './AuthComponents';
+import axios from 'axios';
+import AnalysisResults from './AnalysisResults';
 
 const colors = {
   primary: '#FF0000',    // YouTube Red
@@ -10,16 +12,56 @@ const colors = {
   light: '#F9F9F9',     // Off White
 };
 
+const extractVideoId = (url) => {
+  try {
+    const urlObj = new URL(url);
+    if (urlObj.hostname.includes('youtube.com')) {
+      return urlObj.searchParams.get('v');
+    } else if (urlObj.hostname.includes('youtu.be')) {
+      return urlObj.pathname.slice(1);
+    }
+    return null;
+  } catch (error) {
+    return null;
+  }
+};
+
 const HomePage = () => {
   const [videoUrl, setVideoUrl] = useState('');
   const [darkMode, setDarkMode] = useState(false);
   const [showLoginModal, setShowLoginModal] = useState(false);
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [error, setError] = useState('');
   const { isAuthenticated, user, login, logout } = useContext(AuthContext);
+  const [analysisResults, setAnalysisResults] = useState(null);
+const [showResults, setShowResults] = useState(false);
 
-
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    console.log('Video URL submitted:', videoUrl);
+    setError('');
+    
+    const videoId = extractVideoId(videoUrl);
+    if (!videoId) {
+      setError('Please enter a valid YouTube URL');
+      return;
+    }
+  
+    setIsAnalyzing(true);
+    try {
+      const response = await axios.post('http://localhost:5000/analyze', { videoId }, { withCredentials: true });
+      setAnalysisResults(response.data);
+      setShowResults(true);  // Show results page after successful analysis
+    } catch (error) {
+      console.error('Full error:', error);
+      setError(error.response?.data?.error || 'Failed to analyze video');
+    } finally {
+      setIsAnalyzing(false);
+    }
+  };
+
+  const handleBackToAnalysis = () => {
+    setShowResults(false);
+    setVideoUrl(''); 
   };
 
   const toggleDarkMode = () => {
@@ -30,6 +72,13 @@ const HomePage = () => {
   return (
     <div className={`min-h-screen transition-colors duration-200 ${darkMode ? 'dark bg-gray-900' : 'bg-gradient-to-b from-gray-50 to-gray-100'}`}>
       {/* Hero Section */}
+      {showResults ? (
+      <AnalysisResults 
+        results={analysisResults} 
+        onBack={handleBackToAnalysis}
+      />
+    ) : (
+      <>
       <header className="dark:bg-gray-800 bg-white transition-colors duration-200">
         <nav className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
           <div className="flex justify-between items-center">
@@ -99,9 +148,22 @@ const HomePage = () => {
               <button
                 type="submit"
                 className="px-6 py-3 bg-red-600 text-white rounded-lg hover:bg-red-700 flex items-center gap-2"
+                disabled={isAnalyzing}
               >
-                Analyze <ArrowRight className="h-4 w-4" />
+                 {isAnalyzing ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Analyzing
+                </>
+              ) : (
+                <>
+                  Analyze <ArrowRight className="h-4 w-4" />
+                </>
+              )}
               </button>
+              {error && (
+            <p className="text-red-500 text-sm mt-2">{error}</p>
+          )}
             </form>
           </div>
         </div>
@@ -219,7 +281,9 @@ const HomePage = () => {
           </div>
         </div>
       </footer>
-    </div>
+      </>
+    )}
+  </div>
   );
 };
 
