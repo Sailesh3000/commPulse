@@ -50,6 +50,7 @@ const [showResults, setShowResults] = useState(false);
     try {
       const response = await axios.post('http://localhost:5000/analyze', { videoId }, { withCredentials: true });
       setAnalysisResults(response.data);
+      console.log(response.data);
       setShowResults(true);  // Show results page after successful analysis
     } catch (error) {
       console.error('Full error:', error);
@@ -76,6 +77,7 @@ const [showResults, setShowResults] = useState(false);
       <AnalysisResults 
         results={analysisResults} 
         onBack={handleBackToAnalysis}
+        darkMode = {darkMode}
       />
     ) : (
       <>

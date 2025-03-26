@@ -137,8 +137,17 @@ app.post("/analyze", async (req, res) => {
   if (!videoId) return res.status(400).json({ error: "No video ID provided" });
 
   try {
-    const sentimentResponse = await axios.post("http://127.0.0.1:5002/analyze-sentiment", { videoId});
-    res.json(sentimentResponse.data);
+    const [sentimentResponse, keywordResponse, toxicityResponse] = await Promise.all([
+      axios.post("http://127.0.0.1:5002/analyze-sentiment", { videoId }),
+      axios.post("http://127.0.0.1:5003/extract-keywords", { videoId }),
+      axios.post("http://127.0.0.1:5004/analyze-toxicity", { videoId }),
+    ]);
+
+    res.json({
+      sentiment: sentimentResponse.data,
+      keywords: keywordResponse.data,
+      toxicity: toxicityResponse.data
+    });
 
   } catch (error) {
     console.error(error);
