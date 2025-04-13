@@ -9,9 +9,19 @@ const { google } = require("googleapis");
 const axios = require("axios");
 const zlib = require("zlib");
 const rateLimit = require("express-rate-limit");
-
+const Redis = require("redis");
+const { performance } = require('perf_hooks');
 
 const app = express();
+const redisClient = Redis.createClient({
+  socket: {
+    host: process.env.REDIS_HOST || 'localhost',
+    port: process.env.REDIS_PORT || 6379
+  }
+});
+
+redisClient.on('error', err => console.log('Redis Client Error', err));
+redisClient.connect().then(() => console.log('Connected to Redis')).catch(console.error);
 const PORT = process.env.PORT || 5000;
 
 app.use(express.json()); 
@@ -137,16 +147,41 @@ app.post("/analyze", async (req, res) => {
   if (!videoId) return res.status(400).json({ error: "No video ID provided" });
 
   try {
+    const startTime = performance.now();
+    const cacheKey = `analysis:${videoId}`;
+    
+    // Try to get cached result
+    const cachedResult = await redisClient.get(cacheKey);
+    if (cachedResult) {
+      const endTime = performance.now();
+      return res.json({
+        ...JSON.parse(cachedResult),
+        cached: true,
+        responseTime: endTime - startTime
+      });
+    }
+
+    // If not cached, fetch from services
     const [sentimentResponse, keywordResponse, toxicityResponse] = await Promise.all([
       axios.post("http://127.0.0.1:5002/analyze-sentiment", { videoId }),
       axios.post("http://127.0.0.1:5003/extract-keywords", { videoId }),
       axios.post("http://127.0.0.1:5004/analyze-toxicity", { videoId }),
     ]);
 
-    res.json({
+    const result = {
       sentiment: sentimentResponse.data,
       keywords: keywordResponse.data,
-      toxicity: toxicityResponse.data
+      toxicity: toxicityResponse.data,
+      cached: false
+    };
+
+    // Cache the result for 1 hour
+    await redisClient.setEx(cacheKey, 3600, JSON.stringify(result));
+
+    const endTime = performance.now();
+    res.json({
+      ...result,
+      responseTime: endTime - startTime
     });
 
   } catch (error) {

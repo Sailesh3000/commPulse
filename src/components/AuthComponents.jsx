@@ -131,11 +131,11 @@ export const UserAvatar = ({ user, onLogout }) => {
       >
         <defs>
           <linearGradient id="avatarGradient" x1="0%" y1="0%" x2="100%" y2="100%">
-            <stop offset="0%" stopColor="#F56565" />
-            <stop offset="100%" stopColor="#ED64A6" />
+            <stop offset="0%" stopColor="#83181B" />
+            <stop offset="100%" stopColor="#6A1316" />
           </linearGradient>
         </defs>
-        {/* <rect width="100%" height="100%" fill="url(#avatarGradient)" /> */}
+        <rect width="100%" height="100%" fill="url(#avatarGradient)" />
         <text 
           x="50%" 
           y="50%" 
@@ -173,7 +173,7 @@ export const UserAvatar = ({ user, onLogout }) => {
             <div className="absolute inset-0 rounded-full shadow-inner"></div>
           </div>
         ) : (
-          <div className="w-9 h-9 rounded-full bg-gradient-to-br from-red-500 to-red-600 flex items-center justify-center border-2 border-white dark:border-gray-700 shadow-sm">
+          <div className="w-9 h-9 rounded-full bg-gradient-to-br from-[#83181B] to-[#6A1316] flex items-center justify-center border-2 border-white dark:border-gray-700 shadow-sm">
             {generateAvatar(user.name)}
           </div>
         )}
@@ -188,7 +188,7 @@ export const UserAvatar = ({ user, onLogout }) => {
       </button>
 
       {isMenuOpen && (
-        <div className="absolute right-0 mt-2 w-56 bg-white dark:bg-gray-800 rounded-lg shadow-lg py-1 z-10 border border-gray-200 dark:border-gray-700 transition-all duration-200">
+        <div className="absolute right-0 mt-2 w-56 border-gray-600 bg-gray-800/90 rounded-lg shadow-lg py-1 z-50 border border-gray-200 dark:border-gray-700 transition-all duration-200">
           <div className="px-4 py-3 border-b border-gray-200 dark:border-gray-700">
             <div className="flex items-center gap-3">
               {avatarSrc ? (
