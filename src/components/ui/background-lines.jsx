@@ -6,18 +6,20 @@ import React from "react";
 export const BackgroundLines = ({
   children,
   className,
-  svgOptions
+  svgOptions,
+  darkMode
 }) => {
+  const backgroundColor = darkMode ? "bg-black" : "bg-[#F8EDED]";
   return (
     <div
-      className={cn("min-h-screen w-full bg-white dark:bg-black relative", className)}>
+      className={cn(`min-h-screen w-full ${backgroundColor} relative`, className)}>
       <SVG svgOptions={svgOptions} />
       <div className="relative z-10">
         {children}
       </div>
     </div>
   );
-};
+}
 
 const pathVariants = {
   initial: { strokeDashoffset: 800, strokeDasharray: "50 800" },

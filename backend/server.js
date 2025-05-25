@@ -11,36 +11,58 @@ const zlib = require("zlib");
 const rateLimit = require("express-rate-limit");
 const Redis = require("redis");
 const { performance } = require('perf_hooks');
+const cluster = require('cluster');
+const os = require('os');
 
-const app = express();
-const redisClient = Redis.createClient({
-  socket: {
-    host: process.env.REDIS_HOST || 'localhost',
-    port: process.env.REDIS_PORT || 6379
+// Determine number of CPU cores to use
+// Limit workers to 4 to prevent exceeding MySQL connection limits
+const numCPUs = Math.min(os.cpus().length, 4);
+
+// Check if this is the master process
+if (cluster.isMaster) {
+  console.log(`Master process ${process.pid} is running`);
+  console.log(`Setting up ${numCPUs} workers to handle comment processing`);
+  
+  // Fork workers based on CPU cores
+  for (let i = 0; i < numCPUs; i++) {
+    cluster.fork();
   }
-});
-
-redisClient.on('error', err => console.log('Redis Client Error', err));
-redisClient.connect().then(() => console.log('Connected to Redis')).catch(console.error);
-const PORT = process.env.PORT || 5000;
+  
+  // Handle worker exit and restart
+  cluster.on('exit', (worker, code, signal) => {
+    console.log(`Worker ${worker.process.pid} died with code: ${code} and signal: ${signal}`);
+    console.log('Starting a new worker');
+    cluster.fork();
+  });
+} else {
+  // Worker processes share the same port
+  const app = express();
+  const redisClient = Redis.createClient({
+    socket: {
+      host: process.env.REDIS_HOST || 'localhost',
+      port: process.env.REDIS_PORT || 6379
+    }
+  });
+  
+  redisClient.on('error', err => console.log(`Redis Client Error in worker ${process.pid}:`, err));
+  redisClient.connect().then(() => console.log(`Worker ${process.pid} connected to Redis`)).catch(console.error);
+  const PORT = process.env.PORT || 5000;
 
 app.use(express.json()); 
 app.use(express.urlencoded({ extended: true }));
 
-const db = mysql.createConnection({
+// Create a connection pool instead of individual connections
+const db = mysql.createPool({
   host: process.env.CLEVER_CLOUD_DB_HOST,
   user: process.env.CLEVER_CLOUD_DB_USER,
   password: process.env.CLEVER_CLOUD_DB_PASSWORD,
-  database: process.env.CLEVER_CLOUD_DB_NAME
+  database: process.env.CLEVER_CLOUD_DB_NAME,
+  waitForConnections: true,
+  connectionLimit: 10,
+  queueLimit: 0
 });
 
-db.connect((err) => {
-  if (err) {
-    console.error('Error connecting to MySQL:', err);
-    return;
-  }
-  console.log('Connected to MySQL database');
-});
+console.log(`Worker ${process.pid} connected to MySQL connection pool`);
 
 app.use(
   session({
@@ -157,11 +179,15 @@ app.post("/analyze", async (req, res) => {
       return res.json({
         ...JSON.parse(cachedResult),
         cached: true,
-        responseTime: endTime - startTime
+        responseTime: endTime - startTime,
+        processedBy: process.pid
       });
     }
 
+    console.log(`Worker ${process.pid} processing video ID: ${videoId}`);
+    
     // If not cached, fetch from services
+    // Using Promise.all for parallel processing of comment analysis
     const [sentimentResponse, keywordResponse, toxicityResponse] = await Promise.all([
       axios.post("http://127.0.0.1:5002/analyze-sentiment", { videoId }),
       axios.post("http://127.0.0.1:5003/extract-keywords", { videoId }),
@@ -172,20 +198,24 @@ app.post("/analyze", async (req, res) => {
       sentiment: sentimentResponse.data,
       keywords: keywordResponse.data,
       toxicity: toxicityResponse.data,
-      cached: false
+      cached: false,
+      processedBy: process.pid
     };
 
     // Cache the result for 1 hour
     await redisClient.setEx(cacheKey, 3600, JSON.stringify(result));
 
     const endTime = performance.now();
+    const processingTime = endTime - startTime;
+    console.log(`Worker ${process.pid} completed analysis in ${processingTime.toFixed(2)}ms`);
+    
     res.json({
       ...result,
-      responseTime: endTime - startTime
+      responseTime: processingTime
     });
 
   } catch (error) {
-    console.error(error);
+    console.error(`Worker ${process.pid} encountered an error:`, error);
     res.status(500).json({ error: "Something went wrong" });
   }
 });
@@ -198,5 +228,7 @@ app.use((err, req, res, next) => {
 });
 
 app.listen(PORT, () => {
-  console.log(`Server is running on port ${PORT}`);
+  console.log(`Worker ${process.pid} is running on port ${PORT}`);
 });
+
+} // End of worker process code block
