@@ -16,17 +16,42 @@ keyword_extractor = pipeline("ner", model=model, tokenizer=tokenizer)
 
 youtube = build("youtube", "v3", developerKey=os.getenv("DEVELOPER_KEY"))
 
-def get_comments(video_id, part="snippet", max_results=100):
+def get_comments(video_id, part="snippet", max_results=500):
     try:
-        response = youtube.commentThreads().list(
-            part=part,
-            videoId=video_id,
-            textFormat="plainText",
-            maxResults=max_results
-        ).execute()
+        comments = []
+        next_page_token = None
+        total_results = 0
+        max_pages = 5  # Limit to 5 pages (500 comments) to avoid excessive API usage
+        page_count = 0
+        
+        while page_count < max_pages and total_results < max_results:
+            # Make API request with page token if available
+            request = youtube.commentThreads().list(
+                part=part,
+                videoId=video_id,
+                textFormat="plainText",
+                maxResults=100,  # YouTube API max per page is 100
+                pageToken=next_page_token
+            )
+            response = request.execute()
+            
+            # Extract comments from response
+            for item in response["items"]:
+                comment_text = item["snippet"]["topLevelComment"]["snippet"]["textDisplay"]
+                comments.append(comment_text)
+                total_results += 1
+                if total_results >= max_results:
+                    break
+            
+            # Check if there are more pages
+            next_page_token = response.get("nextPageToken")
+            if not next_page_token:
+                break
+                
+            page_count += 1
 
-        comments = [item["snippet"]["topLevelComment"]["snippet"]["textDisplay"] for item in response["items"]]
         return comments
+
     except HttpError as error:
         return None
 

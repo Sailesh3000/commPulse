@@ -3,6 +3,18 @@ import { Shield, AlertTriangle, CheckCircle, AlertCircle, PieChart } from "lucid
 import { PieChart as RechartPieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend } from "recharts";
 
 export default function ToxicityWidget({ results, darkMode }) {
+  // Guard for undefined or null results
+  if (!results) {
+    return (
+      <div className={`rounded-xl shadow-lg overflow-hidden transition-all duration-300 mb-8 ${darkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-100'}`}>
+        <div className="p-6">
+          <h5 className={`text-xl font-semibold mb-6 ${darkMode ? 'text-white' : 'text-gray-800'}`}>Toxicity Analysis</h5>
+          <div className={darkMode ? 'text-gray-400' : 'text-gray-500'}>No toxicity data available.</div>
+        </div>
+      </div>
+    );
+  }
+
   const toxicityData = [
     { 
       name: "High Toxicity", 
@@ -117,42 +129,6 @@ export default function ToxicityWidget({ results, darkMode }) {
               icon={<CheckCircle className="h-4 w-4" style={{ color: "#22c55e" }} />} 
               color="#22c55e" 
             />
-          </div>
-        </div>
-
-        {/* Summary Stats */}
-        <div className="mt-6 grid grid-cols-2 md:grid-cols-3 gap-4">
-          <div className={`rounded-xl p-4 text-center transition-colors duration-300 ${
-            darkMode ? 'bg-gray-700' : 'bg-gray-50'
-          }`}>
-            <p className={`text-sm uppercase font-medium mb-1 ${
-              darkMode ? 'text-gray-400' : 'text-gray-500'
-            }`}>Total Comments</p>
-            <p className={`text-2xl font-bold ${
-              darkMode ? 'text-white' : 'text-gray-900'
-            }`}>{results.total_comments}</p>
-          </div>
-          
-          <div className={`rounded-xl p-4 text-center transition-colors duration-300 ${
-            darkMode ? 'bg-gray-700' : 'bg-gray-50'
-          }`}>
-            <p className={`text-sm uppercase font-medium mb-1 ${
-              darkMode ? 'text-gray-400' : 'text-gray-500'
-            }`}>Overall Toxicity</p>
-            <p className={`text-2xl font-bold ${
-              darkMode ? 'text-white' : 'text-gray-900'
-            }`}>{results.toxic_percentage.toFixed(1)}%</p>
-          </div>
-          
-          <div className={`rounded-xl p-4 text-center transition-colors duration-300 ${
-            darkMode ? 'bg-gray-700' : 'bg-gray-50'
-          }`}>
-            <p className={`text-sm uppercase font-medium mb-1 ${
-              darkMode ? 'text-gray-400' : 'text-gray-500'
-            }`}>Average Score</p>
-            <p className={`text-2xl font-bold ${
-              darkMode ? 'text-white' : 'text-gray-900'
-            }`}>{(results.average_toxicity * 100).toFixed(1)}%</p>
           </div>
         </div>
       </div>
